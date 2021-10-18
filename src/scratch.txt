@@ -1,0 +1,5 @@
+Hadoop commands
+
+sudo -u hdfs hadoop fs -rm -r /user/srt/wordcounter/output
+sudo -u hdfs hadoop jar Logalyzer-assembly-0.1.1.jar /user/srt/wordcounter/input /user/srt/wordcounter/output
+sudo -u hdfs hadoop fs -cat /user/srt/wordcounter/output/part-00000
