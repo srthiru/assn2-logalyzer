@@ -14,35 +14,23 @@ class TypePatternMapper extends Mapper[Object, Text, Text, IntWritable]{
   val word = new Text()
 
   override def map(key: Object, value: Text, context: Mapper[Object, Text, Text, IntWritable]#Context): Unit = {
-    val itr = new StringTokenizer(value.toString)
-    while (itr.hasMoreTokens()) {
-      val msg = itr.nextToken()
 
-      val msgPattern = new Regex("([0-9]{2}):([0-9]{2}):([0-9]{2}).[0-9]{3} \\[(.*)\\] (WARN|INFO|ERROR|DEBUG) (.*)\\$ - (.*)") // (WARN|INFO|ERROR|DEBUG) (.*)$ - (.*)
+    val msg = value.toString
 
-      val typePattern = new Regex("WARN|INFO|ERROR|DEBUG")
-      val foundType = typePattern.findFirstIn(msg)
+    val msgPattern = new Regex("([0-9]{2}):([0-9]{2}):([0-9]{2})(\\.[0-9]{3})\\s+\\[(.*)\\]\\s+(WARN|INFO|ERROR|DEBUG)\\s+(.*) - (.*)")
+    val injectedPattern = new Regex("([a-c][e-g][0-3]|[A-Z][5-9][f-w]){5,15}")
 
-      val injectedPattern = new Regex("([a-c][e-g][0-3]|[A-Z][5-9][f-w]){5,15}")
-      val foundPattern = injectedPattern.findFirstIn(msg)
+    val result = msg match {
+      case msgPattern(hour, min, sec, milsec, context, logType, className, logMessage) => {
+        val interval = List(hour, min, ((sec.toInt/30)*30)).mkString(":")
+        val hasPattern = if (injectedPattern.findAllIn(logMessage).length > 0) "has_pattern" else "no_pattern"
 
-      val timePattern = new Regex("([0-9]{2}):([0-9]{2}):([0-9]{2}).")
-      val foundTime = timePattern.findAllIn(msg).map {
-        case timePattern(hour, min, sec) => hour + ":" + min + ":" + ((sec.toInt/30)*30).toString
-        case _ =>
+        List(interval, logType, hasPattern).mkString(",")
       }
-
-      val interval = if(foundTime.hasNext) foundTime.next() else "Unknown"
-
-      log.info("this is the matched value" + typePattern)
-
-      val result = foundPattern match {
-        case Some(s) => word.set(interval + "," + foundType.toString + ",has pattern")
-        case None => word.set(interval + "," + foundType.toString + ",no pattern")
-      }
-
-      context.write(word, one)
+      case _ => "No match"
     }
+    word.set(result)
+    context.write(word, one)
   }
 
   def getInterval(hour: Int, min: Int, sec: Int, interval: String): String = {

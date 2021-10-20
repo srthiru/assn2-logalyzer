@@ -1,39 +1,111 @@
 package Logalyzer
 
-import Mappers.{LogTypeMapper, TypePatternMapper}
-import Reducers.LogStatAggregator
+import Mappers.{CharLengthMapper, ErrorMapper, LogTypeMapper, TypePatternMapper}
+import Reducers.{ErrorIntervalSorter, LogStatAggregator, MaxCharLengthReducer}
 import org.apache.commons.logging.LogFactory
 import org.apache.hadoop.conf.Configuration
-import org.apache.hadoop.fs.Path
+import org.apache.hadoop.fs.{FileSystem, Path}
+import org.apache.hadoop.fs
 import org.apache.hadoop.io.{IntWritable, Text}
 import org.apache.hadoop.mapreduce.{Job, Mapper, Reducer}
 import org.apache.hadoop.mapreduce.lib.input.FileInputFormat
-import org.apache.hadoop.mapreduce.lib.output.FileOutputFormat
+import org.apache.hadoop.mapreduce.lib.output.{FileOutputFormat, TextOutputFormat}
+
+import java.lang.Class.forName
 
 object Loganalyzer {
 
   val log = LogFactory.getLog(this.getClass)
 
-  def runMapReduce(hadoopConf: Configuration, jobName: String, inPath: String, outPath: String, mapClass: String, reduceClass: Class[_]): Int = {
-
-    val job = Job.getInstance(hadoopConf, jobName)
-    job.setJarByClass(this.getClass)
-    job.setMapperClass(classOf[TypePatternMapper])
-    job.setCombinerClass(classOf[LogStatAggregator])
-    job.setReducerClass(classOf[LogStatAggregator])
-    job.setOutputKeyClass(classOf[Text])
-    job.setOutputKeyClass(classOf[Text]);
-    job.setOutputValueClass(classOf[IntWritable]);
-    FileInputFormat.addInputPath(job, new Path(inPath))
-    FileOutputFormat.setOutputPath(job, new Path(outPath))
-    if (job.waitForCompletion(true)) 0 else 1
-  }
-
   def main(args: Array[String]): Unit = {
+
+    log.info("Starting Logalyzer")
+
     val hadoopConf = new Configuration
+    hadoopConf.set("mapred.textoutputformat.separator", ",")
+    val fs = FileSystem.get(hadoopConf)
 
-    val jobCompleted = runMapReduce(hadoopConf, "type_pattern_interval", args(0), args(1), "TypePatternMapper", classOf[LogStatAggregator])
+    val task1Input = new Path(args(0))
+    val task1Output = new Path(args(1))
+    if fs.exists(task1Output) then fs.delete(task1Output, true)
 
-    if (jobCompleted == 0) System.exit(1);
+//    val task1Completed = runMapReduce(hadoopConf, "type_pattern_interval", task1Input, task1Output, "Logalyzer.Mappers.TypePatternMapper", classOf[LogStatAggregator])
+
+    // Task 1: Compute the distribution of log messages by log type, interval and presence of injected pattern
+    val job1 = Job.getInstance(hadoopConf, "distribution")
+    job1.setJarByClass(this.getClass)
+    job1.setMapperClass(classOf[TypePatternMapper])
+    job1.setCombinerClass(classOf[LogStatAggregator])
+    job1.setReducerClass(classOf[LogStatAggregator])
+    job1.setOutputKeyClass(classOf[Text])
+    job1.setOutputValueClass(classOf[IntWritable])
+    FileInputFormat.addInputPath(job1, task1Input)
+    FileOutputFormat.setOutputPath(job1, task1Output)
+    val task1Completed = job1.waitForCompletion(true)
+
+    if (!task1Completed) log.error("Failed task 1")
+
+    if(task1Completed){
+      // Task 2: Sort the intervals by number of log messages in descending order
+      // for the log message type ERROR that has the injected pattern
+      val task2Output = new Path("/user/srt/logalyzer/output/errorsorter/")
+      if fs.exists(task2Output) then fs.delete(task2Output, true)
+
+      val job2 = Job.getInstance(hadoopConf, "error_sorter")
+      job2.setJarByClass(this.getClass)
+      job2.setMapperClass(classOf[ErrorMapper])
+      //    job2.setPartitionerClass(classOf[IntervalCountPartitioner])
+      //    job2.setGroupingComparatorClass(classOf[IntervalCountGroupingComparator])
+      job2.setCombinerClass(classOf[ErrorIntervalSorter])
+      job2.setReducerClass(classOf[ErrorIntervalSorter])
+      //    job2.setMapOutputKeyClass(classOf[IntervalCountPair])
+      job2.setOutputKeyClass(classOf[Text])
+      job2.setOutputValueClass(classOf[IntWritable])
+      FileInputFormat.addInputPath(job2, task1Output)
+      FileOutputFormat.setOutputPath(job2, task2Output)
+
+      if (!job2.waitForCompletion(true))
+        log.error("Failed task 2")
+
+      // Task 3: Compute the number of log messages by log type
+      val task3Output = new Path("/user/srt/logalyzer/output/logTypeTotal/")
+      if fs.exists(task3Output) then fs.delete(task3Output, true)
+
+      val job3 = Job.getInstance(hadoopConf, "log_type_total")
+      job3.setJarByClass(this.getClass)
+      job3.setMapperClass(classOf[LogTypeMapper])
+      //    job3.setPartitionerClass(classOf[IntervalCountPartitioner])
+      //    job3.setGroupingComparatorClass(classOf[IntervalCountGroupingComparator])
+      job3.setCombinerClass(classOf[LogStatAggregator])
+      job3.setReducerClass(classOf[LogStatAggregator])
+      //    job3.setMapOutputKeyClass(classOf[IntervalCountPair])
+      job3.setOutputKeyClass(classOf[Text])
+      job3.setOutputValueClass(classOf[IntWritable])
+      FileInputFormat.addInputPath(job3, task1Output)
+      FileOutputFormat.setOutputPath(job3, task3Output)
+
+      if (!job3.waitForCompletion(true))
+        log.error("Failed task 3")
+
+    }
+
+    // Task 4: Compute the maximum number of characters in messages with the injected pattern for each log type
+    val task4Output = new Path("/user/srt/logalyzer/output/maxlength/")
+    if fs.exists(task4Output) then fs.delete(task4Output, true)
+
+    val job4 = Job.getInstance(hadoopConf, "maxlengthlog")
+    job4.setJarByClass(this.getClass)
+    job4.setMapperClass(classOf[CharLengthMapper])
+    //    job4.setPartitionerClass(classOf[IntervalCountPartitioner])
+    //    job4.setGroupingComparatorClass(classOf[IntervalCountGroupingComparator])
+    job4.setCombinerClass(classOf[MaxCharLengthReducer])
+    job4.setReducerClass(classOf[MaxCharLengthReducer])
+    //    job4.setMapOutputKeyClass(classOf[IntervalCountPair])
+    job4.setOutputKeyClass(classOf[Text])
+    job4.setOutputValueClass(classOf[IntWritable])
+    FileInputFormat.addInputPath(job4, task1Input)
+    FileOutputFormat.setOutputPath(job4, task4Output)
+
+    if (!job4.waitForCompletion(true)) log.error("Failed task 4")
   }
 }

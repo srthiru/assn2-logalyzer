@@ -16,25 +16,20 @@ class LogTypeMapper extends Mapper[Object, Text, Text, IntWritable] {
 
   val log = LogFactory.getLog(this.getClass)
 
-  val one = new IntWritable(1)
+  val count = new IntWritable(0)
   val word = new Text()
 
   override def map(key: Object, value: Text, context: Mapper[Object, Text, Text, IntWritable]#Context): Unit = {
-    val itr = new StringTokenizer(value.toString)
-    while (itr.hasMoreTokens()) {
-      val msg = itr.nextToken()
-      val typePattern = new Regex("WARN|INFO|ERROR|DEBUG")
-      log.info("this is the pattern" + typePattern)
-      val foundType = typePattern.findFirstIn(msg)
 
-      log.info("this is the matched value" + typePattern)
+    val distribution = value.toString
+    val split = distribution.split(",")
 
-      val assifoundType = foundType match {
-        case Some(s) => word.set(s)
-        case None => word.set("")
-      }
+    val logType = split(1)
+    val logCount = split(3)
 
-      context.write(word, one)
-    }
+    word.set(logType)
+    count.set(logCount.toInt)
+
+    context.write(word, count)
   }
 }
