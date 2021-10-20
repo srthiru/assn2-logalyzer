@@ -1,0 +1,5 @@
+package Logalyzer
+
+class IntervalCountGroupingComparator {
+
+}
