@@ -17,5 +17,6 @@ libraryDependencies ++= Seq(
   "org.apache.hadoop" % "hadoop-core" % hadoopVersion,
   "org.slf4j" % "slf4j-api" % sfl4jVersion,
   "org.scalatest" %% "scalatest" % scalacticVersion % Test,
+  "org.scalactic" %% "scalactic" % scalacticVersion,
   "com.typesafe" % "config" % typesafeConfigVersion
 )
