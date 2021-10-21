@@ -23,7 +23,25 @@ Configurations in the log-back.xml were changed to generate log files rolling **
 
 `<fileNamePattern>log/LogFileGenerator.%d{yyyy-MM-dd_HH-mm}.log</fileNamePattern>`
 
+The default Log generator config was also changed to modify the default likelihood of log types as follows:
+
+`
+logMessageType {
+    error = [0, 0.02]
+    warn = [0.02, 0.4]
+    debug = [0.4, 0.45]
+    info = [0.5, 1]
+  }
+`
+to generate more log messages of type ERROR as compared to the default configuration and also a `Frequency` value of `0.17` was used to generate more ratio of messages injected with the pattern.
+
+The given pattern of `"([a-c][e-g][0-3]|[A-Z][5-9][f-w]){5,15}"` was used as is for the log generation.
+
+And `DurationMinutes` of `10` was used with a `MaxCount` of `0` to generate 10 log files rolled by minute.
+
 The input log shards along with the built JAR file were deployed to run the map reduce application.
+
+Input/Output paths of the jobs can be configured using the `application.conf` file.
 
 ## Map Reduce application
 
@@ -54,6 +72,7 @@ The output of the map reduce application will be in split into parts. These can 
 ## Limitations of the implemetation
 * For task 2, since it is a sorting application, number of reducers were restricted to 1 to avoid resulting to multiple part output files. Since the input to this file is already aggregated this would not be an issue, but this should be worked around for large scale processing
 * The interval specified can only be configured based on seconds. Can add implementation to split the interval based on other aggregations - hour, min etc.
+* Input paths have to be modified in the application config before building the JAR. Can add support to override default paths using command-line arguments or an alternate config that can be read in runtime if provided.
 
 ## Installation
 
@@ -66,6 +85,8 @@ Using SBT
 Install Scala using SBT following the instructions from the link
 Open a command prompt and navigate to the project folder
 Run the following command - *sbt assembly* (make sure that sbt is added to your environment path) to build the JAR file
+
+To run the map reduce application, move the input files and JAR to the virtual machine or the Master node of the EMR cluster and run the JAR file.
 
 ## Dependencies
 
