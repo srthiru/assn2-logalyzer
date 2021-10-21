@@ -39,9 +39,9 @@ The given pattern of `"([a-c][e-g][0-3]|[A-Z][5-9][f-w]){5,15}"` was used as is 
 
 And `DurationMinutes` of `10` was used with a `MaxCount` of `0` to generate 10 log files rolled by minute.
 
-The input log shards along with the built JAR file were deployed to run the map reduce application.
+The input files (generated logs) can be found in the [input/](https://github.com/srthiru/logalyzer/tree/main/input) folder of the repo.
 
-Input/Output paths of the jobs can be configured using the `application.conf` file.
+The input log shards along with the built JAR file were deployed to run the map reduce application. Input/Output paths of the jobs can be configured using the [application.conf](https://github.com/srthiru/logalyzer/blob/main/src/main/resources/application.conf) file of the project.
 
 ## Map Reduce application
 
@@ -85,6 +85,8 @@ Using SBT
 Install Scala using SBT following the instructions from the link
 Open a command prompt and navigate to the project folder
 Run the following command - *sbt assembly* (make sure that sbt is added to your environment path) to build the JAR file
+
+The generated JAR file can be found under the [target](https://github.com/srthiru/logalyzer/tree/main/target/scala-3.0.2) folder.
 
 To run the map reduce application, move the input files and JAR to the virtual machine or the Master node of the EMR cluster and run the JAR file.
 
