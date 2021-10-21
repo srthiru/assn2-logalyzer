@@ -2,6 +2,7 @@ package Logalyzer
 
 import Mappers.{CharLengthMapper, ErrorMapper, LogTypeMapper, TypePatternMapper}
 import Reducers.{ErrorIntervalSorter, LogStatAggregator, MaxCharLengthReducer}
+import com.typesafe.config.ConfigFactory
 import org.apache.commons.logging.LogFactory
 import org.apache.hadoop.conf.Configuration
 import org.apache.hadoop.fs.{FileSystem, Path}
@@ -16,20 +17,23 @@ import java.lang.Class.forName
 object Loganalyzer {
 
   val log = LogFactory.getLog(this.getClass)
+  val appConfig = ConfigFactory.load()
 
   def main(args: Array[String]): Unit = {
 
     log.info("Starting Logalyzer")
 
+    //Get hadoop configuration
     val hadoopConf = new Configuration
+    //Set output format to be comma-separated values
     hadoopConf.set("mapred.textoutputformat.separator", ",")
+
+    //Get a reference to Hadoop file system
     val fs = FileSystem.get(hadoopConf)
 
-    val task1Input = new Path(args(0))
-    val task1Output = new Path(args(1))
+    val task1Input = new Path(appConfig.getString("task1input"))
+    val task1Output = new Path(appConfig.getString("task1output"))
     if fs.exists(task1Output) then fs.delete(task1Output, true)
-
-//    val task1Completed = runMapReduce(hadoopConf, "type_pattern_interval", task1Input, task1Output, "Logalyzer.Mappers.TypePatternMapper", classOf[LogStatAggregator])
 
     // Task 1: Compute the distribution of log messages by log type, interval and presence of injected pattern
     val job1 = Job.getInstance(hadoopConf, "distribution")
@@ -48,7 +52,7 @@ object Loganalyzer {
     if(task1Completed){
       // Task 2: Sort the intervals by number of log messages in descending order
       // for the log message type ERROR that has the injected pattern
-      val task2Output = new Path("/user/srt/logalyzer/output/errorsorter/")
+      val task2Output = new Path(appConfig.getString("task2output"))
       if fs.exists(task2Output) then fs.delete(task2Output, true)
 
       val job2 = Job.getInstance(hadoopConf, "error_sorter")
@@ -58,6 +62,7 @@ object Loganalyzer {
       //    job2.setGroupingComparatorClass(classOf[IntervalCountGroupingComparator])
       job2.setCombinerClass(classOf[ErrorIntervalSorter])
       job2.setReducerClass(classOf[ErrorIntervalSorter])
+      job2.setNumReduceTasks(1)
       //    job2.setMapOutputKeyClass(classOf[IntervalCountPair])
       job2.setOutputKeyClass(classOf[Text])
       job2.setOutputValueClass(classOf[IntWritable])
@@ -68,7 +73,7 @@ object Loganalyzer {
         log.error("Failed task 2")
 
       // Task 3: Compute the number of log messages by log type
-      val task3Output = new Path("/user/srt/logalyzer/output/logTypeTotal/")
+      val task3Output = new Path(appConfig.getString("task3output"))
       if fs.exists(task3Output) then fs.delete(task3Output, true)
 
       val job3 = Job.getInstance(hadoopConf, "log_type_total")
@@ -90,7 +95,7 @@ object Loganalyzer {
     }
 
     // Task 4: Compute the maximum number of characters in messages with the injected pattern for each log type
-    val task4Output = new Path("/user/srt/logalyzer/output/maxlength/")
+    val task4Output = new Path(appConfig.getString("task4output"))
     if fs.exists(task4Output) then fs.delete(task4Output, true)
 
     val job4 = Job.getInstance(hadoopConf, "maxlengthlog")

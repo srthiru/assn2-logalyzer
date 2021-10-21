@@ -1,5 +1,6 @@
-package Logalyzer
+package Logalyzer.CompositeKey
 
+import Logalyzer.CompositeKey.IntervalCountPair
 import org.apache.hadoop.mapreduce.Partitioner
 
 class IntervalCountPartitioner extends Partitioner[IntervalCountPair, Int]{

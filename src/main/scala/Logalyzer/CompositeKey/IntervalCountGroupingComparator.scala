@@ -1,7 +1,7 @@
-package Logalyzer
+package Logalyzer.CompositeKey
 
-import org.apache.hadoop.io.WritableComparator
-import org.apache.hadoop.io.WritableComparable
+import Logalyzer.CompositeKey.IntervalCountPair
+import org.apache.hadoop.io.{WritableComparable, WritableComparator}
 
 class IntervalCountGroupingComparator extends WritableComparator(classOf[IntervalCountPair], true){
 

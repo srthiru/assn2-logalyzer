@@ -1,4 +1,4 @@
-package Logalyzer
+package Logalyzer.CompositeKey
 
 import org.apache.hadoop.io.{IntWritable, Text, Writable, WritableComparable}
 
