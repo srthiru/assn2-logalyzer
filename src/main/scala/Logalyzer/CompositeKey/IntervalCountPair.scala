@@ -4,6 +4,8 @@ import org.apache.hadoop.io.{IntWritable, Text, Writable, WritableComparable}
 
 import java.io.{DataInput, DataOutput}
 
+// Composite key for sorting by value output of mapper class
+// Currently not used in implemetation
 class IntervalCountPair extends Writable, WritableComparable[IntervalCountPair]{
   val interval = new Text();
   val count = new IntWritable();

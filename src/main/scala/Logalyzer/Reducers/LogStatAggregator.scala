@@ -3,6 +3,7 @@ package Logalyzer.Reducers
 import org.apache.hadoop.io.{IntWritable, Text}
 import org.apache.hadoop.mapreduce.Reducer
 
+// Reducer class to sum the log counts based on the key
 import scala.collection.JavaConverters.iterableAsScalaIterableConverter
 
 class LogStatAggregator extends Reducer[Text,IntWritable,Text,IntWritable] {
